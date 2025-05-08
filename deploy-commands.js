@@ -1,6 +1,5 @@
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
-require('dotenv').config();
 
 const commands = [];
 const folders = fs.readdirSync('./commands');
@@ -17,13 +16,13 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
   try {
-    console.log('🔁 Registering slash commands...');
+    console.log('🔁 Registering global slash commands...');
     await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      Routes.applicationCommands(process.env.CLIENT_ID),
       { body: commands }
     );
-    console.log('✅ Commands registered.');
+    console.log('✅ Global commands registered successfully.');
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error registering commands:', error);
   }
 })();
