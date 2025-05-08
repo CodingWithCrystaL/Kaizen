@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord
 const fs = require('fs');
 const express = require('express');
 
+// Create bot client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,18 +13,24 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-require('./handlers/commandHandler')(client);
 
-// Keep-alive server for Render
-const app = express();
-app.get('/', (req, res) => res.send('Bot is alive!'));
-app.listen(3000, () => console.log('✅ Keep-alive server running on port 3000'));
+// Load all commands
+const folders = fs.readdirSync('./commands');
+for (const folder of folders) {
+  const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+  for (const file of commandFiles) {
+    const command = require(`./commands/${folder}/${file}`);
+    if ('data' in command && 'execute' in command) {
+      client.commands.set(command.data.name, command);
+    } else {
+      console.log(`[WARN] Command ${file} missing "data" or "execute"`);
+    }
+  }
+}
 
-// Register slash commands globally
+// Deploy slash commands globally
 const deployCommands = async () => {
   const commands = [];
-  const folders = fs.readdirSync('./commands');
-
   for (const folder of folders) {
     const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
     for (const file of commandFiles) {
@@ -38,10 +45,30 @@ const deployCommands = async () => {
     await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
     console.log('✅ Commands deployed successfully.');
   } catch (error) {
-    console.error('❌ Command registration failed:', error);
+    console.error('❌ Command deployment failed:', error);
   }
 };
 
+// Interaction handler
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({ content: '❌ There was an error executing that command.', ephemeral: true });
+    } else {
+      await interaction.reply({ content: '❌ There was an error executing that command.', ephemeral: true });
+    }
+  }
+});
+
+// Bot ready event
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
@@ -59,7 +86,12 @@ client.once('ready', () => {
   }, 4000);
 });
 
-// Deploy and then login
+// Keep-alive server
+const app = express();
+app.get('/', (req, res) => res.send('Bot is alive!'));
+app.listen(3000, () => console.log('✅ Keep-alive server running on port 3000'));
+
+// Deploy commands then login
 deployCommands().then(() => {
   client.login(process.env.DISCORD_TOKEN);
 });
