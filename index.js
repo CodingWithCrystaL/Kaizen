@@ -28,7 +28,7 @@ client.once('ready', () => {
     const status = statuses[i % statuses.length]();
     client.user.setActivity(status, { type: 3 }); // 3 = Watching
     i++;
-  }, 15000); // Rotate every 15 sec
+  }, 4000); // Rotate every 15 sec
 });
 
 client.login(process.env.DISCORD_TOKEN);
