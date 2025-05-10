@@ -3,7 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const warnPath = path.join(__dirname, '../../data/warns.json');
 
-if (!fs.existsSync(warnPath)) fs.writeFileSync(warnPath, JSON.stringify({}));
+if (!fs.existsSync(warnPath)) {
+  fs.mkdirSync(path.dirname(warnPath), { recursive: true });
+  fs.writeFileSync(warnPath, JSON.stringify({}));
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -26,7 +29,7 @@ module.exports = {
       : interaction.content.split(' ').slice(2).join(' ') || 'No reason provided';
 
     if (!user) {
-      return interaction.reply({ content: '⚠️ Please mention a user to warn.', ephemeral: !isSlash });
+      return interaction.reply({ content: '⚠️ Please mention a user.', ephemeral: !isSlash });
     }
 
     const warns = JSON.parse(fs.readFileSync(warnPath));
