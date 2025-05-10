@@ -7,24 +7,35 @@ module.exports = {
     .addUserOption(option =>
       option.setName('target').setDescription('User to ban').setRequired(true))
     .addStringOption(option =>
-      option.setName('reason').setDescription('Reason for ban'))
+      option.setName('reason').setDescription('Reason for the ban'))
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
   async execute(interaction) {
-    const user = interaction.options.getUser('target');
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const isSlash = !!interaction.commandName;
+    const user = isSlash
+      ? interaction.options.getUser('target')
+      : interaction.mentions.users.first();
+
+    const reason = isSlash
+      ? interaction.options.getString('reason') || 'No reason provided'
+      : interaction.content.split(' ').slice(2).join(' ') || 'No reason provided';
+
+    if (!user) {
+      return interaction.reply({ content: '⚠️ Please mention a valid user.', ephemeral: !isSlash });
+    }
+
     const member = interaction.guild.members.cache.get(user.id);
     if (!member || !member.bannable) {
-      return interaction.reply({ content: '⚠️ I cannot ban this user.', ephemeral: true });
+      return interaction.reply({ content: '❌ I cannot ban this user.', ephemeral: !isSlash });
     }
 
     await member.ban({ reason });
 
     const embed = new EmbedBuilder()
-      .setTitle('🔨 Member Banned')
-      .setDescription(`**${user.tag}** has been banned.\n**Reason:** ${reason}`)
+      .setTitle('🔨 User Banned')
+      .setDescription(`> **${user.tag}** has been banned.\n> **Reason:** ${reason}`)
       .setColor('#ffffff')
-      .setFooter({ text: `${interaction.guild.name} | 🌙Made By Kai` })
+      .setFooter({ text: `${interaction.guild.name}` })
       .setTimestamp();
 
     interaction.reply({ embeds: [embed] });
