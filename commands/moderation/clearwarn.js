@@ -3,12 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const warnPath = path.join(__dirname, '../../data/warns.json');
 
+if (!fs.existsSync(warnPath)) {
+  fs.mkdirSync(path.dirname(warnPath), { recursive: true });
+  fs.writeFileSync(warnPath, JSON.stringify({}));
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('clearwarn')
     .setDescription('🧽 Clear all warnings of a user')
     .addUserOption(option =>
-      option.setName('target').setDescription('User to clear warnings for').setRequired(true))
+      option.setName('target').setDescription('User to clear').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
@@ -18,14 +23,14 @@ module.exports = {
       : interaction.mentions.users.first();
 
     if (!user) {
-      return interaction.reply({ content: '⚠️ Please mention a valid user.', ephemeral: !isSlash });
+      return interaction.reply({ content: '⚠️ Mention a user.', ephemeral: !isSlash });
     }
 
     const warns = JSON.parse(fs.readFileSync(warnPath));
     const id = interaction.guild.id + user.id;
 
-    if (!warns[id] || warns[id].length === 0) {
-      return interaction.reply({ content: `ℹ️ **${user.tag}** has no warnings.`, ephemeral: !isSlash });
+    if (!warns[id]) {
+      return interaction.reply({ content: `ℹ️ No warnings for ${user.tag}.`, ephemeral: !isSlash });
     }
 
     delete warns[id];
@@ -33,7 +38,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setTitle('🧽 Warnings Cleared')
-      .setDescription(`> All warnings for **${user.tag}** have been cleared.`)
+      .setDescription(`> All warnings for **${user.tag}** are cleared.`)
       .setColor('#ffffff')
       .setFooter({ text: `${interaction.guild.name}` })
       .setTimestamp();
