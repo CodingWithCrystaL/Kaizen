@@ -7,15 +7,18 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
   async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, {
+    const isSlash = !!interaction.commandName;
+    const channel = interaction.channel;
+
+    await channel.permissionOverwrites.edit(interaction.guild.roles.everyone, {
       SendMessages: true
     });
 
     const embed = new EmbedBuilder()
       .setTitle('🔓 Channel Unlocked')
-      .setDescription('This channel is now unlocked.')
+      .setDescription(`> This channel has been **unlocked** and reopened for chat.`)
       .setColor('#ffffff')
-      .setFooter({ text: `${interaction.guild.name} | 🌙Made By Kai` })
+      .setFooter({ text: `${interaction.guild.name}` })
       .setTimestamp();
 
     interaction.reply({ embeds: [embed] });
