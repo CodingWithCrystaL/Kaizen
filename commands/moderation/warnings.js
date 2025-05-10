@@ -3,12 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const warnPath = path.join(__dirname, '../../data/warns.json');
 
+if (!fs.existsSync(warnPath)) {
+  fs.mkdirSync(path.dirname(warnPath), { recursive: true });
+  fs.writeFileSync(warnPath, JSON.stringify({}));
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('warnings')
     .setDescription('📋 View a user\'s warnings')
     .addUserOption(option =>
-      option.setName('target').setDescription('User to check warnings for').setRequired(true)),
+      option.setName('target').setDescription('User to check').setRequired(true)),
 
   async execute(interaction) {
     const isSlash = !!interaction.commandName;
@@ -17,7 +22,7 @@ module.exports = {
       : interaction.mentions.users.first();
 
     if (!user) {
-      return interaction.reply({ content: '⚠️ Please mention a user.', ephemeral: !isSlash });
+      return interaction.reply({ content: '⚠️ Mention a user.', ephemeral: !isSlash });
     }
 
     const warns = JSON.parse(fs.readFileSync(warnPath));
@@ -32,12 +37,11 @@ module.exports = {
       .setTimestamp();
 
     if (userWarns.length === 0) {
-      embed.setDescription(`> **${user.tag}** has no warnings.`);
+      embed.setDescription(`> No warnings for **${user.tag}**.`);
     } else {
-      const list = userWarns.map((warn, i) =>
+      embed.setDescription(userWarns.map((warn, i) =>
         `**${i + 1}.** ${warn.reason} — *by ${warn.moderator}*`
-      ).join('\n');
-      embed.setDescription(list);
+      ).join('\n'));
     }
 
     interaction.reply({ embeds: [embed] });
