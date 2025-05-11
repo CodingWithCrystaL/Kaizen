@@ -1,10 +1,10 @@
 {
   "name": "kaizen-bot",
   "version": "1.0.0",
-  "description": "All-in-one Discord bot with moderation, utility, weather, and more.",
-  "main": "index.js",
+  "description": "Kaizen — All-in-One Discord Bot with moderation, utility, welcome, and more.",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/index.js"
   },
   "engines": {
     "node": ">=16.9.0"
@@ -13,6 +13,7 @@
     "axios": "^1.6.8",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "moment": "^2.29.4",
     "moment-duration-format": "^2.3.2",
     "ms": "^2.1.3"
