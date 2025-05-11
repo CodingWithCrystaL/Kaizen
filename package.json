@@ -1,7 +1,7 @@
 {
   "name": "kaizen-bot",
   "version": "1.0.0",
-  "description": "Kaizen — All-in-One Discord Bot with moderation, utility, welcome, and more.",
+  "description": "Kaizen — All-in-one Discord bot with moderation, utility, welcome cards and more.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js"
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "axios": "^1.6.8",
+    "canvas": "^2.11.2",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
