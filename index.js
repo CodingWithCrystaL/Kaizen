@@ -9,14 +9,13 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const express = require('express');
 require('dotenv').config();
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction]
@@ -25,34 +24,32 @@ const client = new Client({
 client.commands = new Collection();
 client.prefix = '.';
 
-// Load commands
+// Load all commands
 const foldersPath = path.join(__dirname, 'commands');
 for (const folder of fs.readdirSync(foldersPath)) {
   const commandsPath = path.join(foldersPath, folder);
   for (const file of fs.readdirSync(commandsPath)) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
+    const command = require(path.join(commandsPath, file));
     if (command.data && command.execute) {
       client.commands.set(command.data.name, command);
     }
   }
 }
 
-// Slash handler
+// Handle slash commands
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
-
   try {
     await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
   }
 });
 
-// Prefix handler (fixed)
+// Handle prefix commands
 client.on('messageCreate', async message => {
   if (message.author.bot || !message.content.startsWith(client.prefix)) return;
 
@@ -70,23 +67,33 @@ client.on('messageCreate', async message => {
         getString: (i = 0) => args.slice(i).join(' '),
         getInteger: (i = 0) => parseInt(args[i]),
         getUser: () => message.mentions.users.first(),
-        getRole: () => message.mentions.roles.first()
+        getRole: () => message.mentions.roles.first(),
+        getChannel: () => message.mentions.channels.first()
       },
       user: message.author,
-      reply: (payload) => message.channel.send(payload),
+      reply: payload => message.channel.send(payload),
       guild: message.guild,
       member: message.member,
       content: message.content
     };
 
     await command.execute(fakeInteraction);
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     message.reply('❌ Error executing command.');
   }
 });
 
-// Bot Ready
+// Load event handlers
+const eventsPath = path.join(__dirname, 'events');
+for (const file of fs.readdirSync(eventsPath)) {
+  const event = require(path.join(eventsPath, file));
+  if (event.name && typeof event.execute === 'function') {
+    client.on(event.name, (...args) => event.execute(...args, client));
+  }
+}
+
+// Bot ready
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
@@ -100,21 +107,18 @@ client.once('ready', async () => {
     console.error('❌ Slash registration failed:', err);
   }
 
-  // Status rotation
-  const statusArray = [
-    () => `👤 ${client.users.cache.size} users`,
+  // Accurate status rotation
+  const statuses = [
+    () => `👤 ${client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0)} members`,
     () => `🌐 ${client.guilds.cache.size} servers`,
     () => `/help or .help to begin`
   ];
+
   let index = 0;
   setInterval(() => {
-    client.user.setActivity(statusArray[index++ % statusArray.length](), { type: ActivityType.Watching });
+    const status = statuses[index++ % statuses.length]();
+    client.user.setActivity(status, { type: ActivityType.Watching });
   }, 4000);
 });
-
-// KeepAlive for Render
-const app = express();
-app.get('/', (req, res) => res.send('Kaizen bot is alive!'));
-app.listen(3000, () => console.log('✅ KeepAlive server live on port 3000'));
 
 client.login(process.env.DISCORD_TOKEN);
