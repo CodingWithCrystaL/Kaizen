@@ -1,15 +1,16 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const BOT_OWNER_ID = '1193918827537371136';
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('broadcast')
-    .setDescription('📢 Send a message to all members of this server via DM (owner only)')
+    .setDescription('📢 DM everyone in this server with a plain message (owner only)')
     .addStringOption(option =>
-      option.setName('message').setDescription('The message to send').setRequired(true)),
+      option.setName('message').setDescription('Message to send').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   name: 'broadcast',
-  description: 'DM everyone in the server (owner only)',
+  description: 'Send a plain text DM to all server members (owner only)',
 
   async execute(interaction) {
     if (interaction.user.id !== BOT_OWNER_ID) {
@@ -20,26 +21,18 @@ module.exports = {
     const members = await interaction.guild.members.fetch();
     let sent = 0;
 
-    const embed = new EmbedBuilder()
-      .setDescription(msg)
-      .setColor('#ffffff')
-      .setTimestamp();
-
     for (const [, member] of members) {
       if (member.user.bot) continue;
       try {
-        await member.send({ embeds: [embed] });
+        await member.send(msg);
         sent++;
       } catch {}
     }
 
-    const confirm = new EmbedBuilder()
-      .setTitle('✅ Broadcast Sent')
-      .setDescription(`Message delivered to **${sent}** members.`)
-      .setColor('#ffffff')
-      .setTimestamp();
-
-    interaction.reply({ embeds: [confirm], ephemeral: true });
+    interaction.reply({
+      content: `✅ Message sent to **${sent}** members.`,
+      ephemeral: true
+    });
   },
 
   async run(client, message, args) {
@@ -53,15 +46,10 @@ module.exports = {
     const members = await message.guild.members.fetch();
     let sent = 0;
 
-    const embed = new EmbedBuilder()
-      .setDescription(msg)
-      .setColor('#ffffff')
-      .setTimestamp();
-
     for (const [, member] of members) {
       if (member.user.bot) continue;
       try {
-        await member.send({ embeds: [embed] });
+        await member.send(msg);
         sent++;
       } catch {}
     }
