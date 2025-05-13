@@ -13,11 +13,11 @@ const client = new Client({
   ]
 });
 
-client.commands = new Collection();
-client.prefixCommands = new Collection();
 const prefix = '.';
+client.commands = new Collection();       // for slash
+client.prefixCommands = new Collection(); // for prefix
 
-// Load commands
+// Load Commands (prefix + slash)
 const commandFolders = ['moderation', 'utility', 'welcome', 'admin'];
 for (const folder of commandFolders) {
   const folderPath = path.join(__dirname, 'commands', folder);
@@ -28,41 +28,46 @@ for (const folder of commandFolders) {
 
   const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
   for (const file of commandFiles) {
-    const command = require(`./commands/${folder}/${file}`);
-    if (command.data) client.commands.set(command.data.name, command); // for slash
-    if (command.name) client.prefixCommands.set(command.name, command); // for prefix
+    const command = require(path.join(folderPath, file));
+    if (command.data) client.commands.set(command.data.name, command);        // Slash
+    if (command.name && command.run) client.prefixCommands.set(command.name, command); // Prefix
   }
 }
 
-// Handle slash commands
+// Slash Commands Handler
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
   try {
-    await command.execute(interaction);
+    await command.execute(interaction, client);
   } catch (err) {
-    console.error(err);
-    await interaction.reply({ content: '❌ Error running command.', ephemeral: true });
+    console.error(`❌ Slash Error: ${interaction.commandName}`, err);
+    await interaction.reply({ content: '❌ Command failed.', ephemeral: true });
   }
 });
 
-// Handle prefix commands
+// Prefix Commands Handler
 client.on('messageCreate', async message => {
   if (!message.content.startsWith(prefix) || message.author.bot) return;
+
+  console.log(`[PREFIX] ${message.content}`);
+
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const cmdName = args.shift().toLowerCase();
   const command = client.prefixCommands.get(cmdName);
-  if (!command) return;
+
+  if (!command) return console.log(`❌ Unknown prefix command: ${cmdName}`);
+
   try {
     await command.run(client, message, args);
   } catch (err) {
-    console.error(err);
-    await message.channel.send('❌ Error running command.');
+    console.error(`❌ Prefix Error: ${cmdName}`, err);
+    await message.channel.send('❌ Something went wrong.');
   }
 });
 
-// Auto-register slash commands
+// Auto Register Slash Commands
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
@@ -71,22 +76,20 @@ client.once('ready', async () => {
 
   try {
     await rest.put(Routes.applicationCommands(client.user.id), { body: commandsArray });
-    console.log('✅ Slash commands registered globally.');
+    console.log('✅ Slash commands registered.');
   } catch (err) {
-    console.error('❌ Failed to register slash commands:', err);
+    console.error('❌ Slash registration failed:', err);
   }
 
-  // Rotating status
+  // Rotating Bot Status
   const statuses = [
     () => `👤 ${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)} users`,
     () => `.help | Kaizen`,
     () => `🌐 ${client.guilds.cache.size} servers`
   ];
-
   let i = 0;
   setInterval(() => {
-    const status = statuses[i++ % statuses.length]();
-    client.user.setActivity(status, { type: ActivityType.Watching });
+    client.user.setActivity(statuses[i++ % statuses.length](), { type: ActivityType.Watching });
   }, 10000);
 });
 
