@@ -1,7 +1,8 @@
 {
   "name": "kaizen-bot",
   "version": "1.0.0",
-  "description": "Kaizen — All-in-one Discord "main": "index.js",
+  "description": "Kaizen — All-in-one Discord "
+  "main": "index.js",
 "scripts": {
   "start": "node index.js"
 },
