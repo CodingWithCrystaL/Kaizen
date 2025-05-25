@@ -3,27 +3,22 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('sendpanel')
-    .setDescription('Send the ticket panel with an Edit Panel button'),
+    .setDescription('Send the ticket panel with buttons to create tickets.'),
 
-  async execute(interaction, client) {
-    const panelData = client.panelData || {
-      title: "Shop & Support Tickets",
-      description: "To create a ticket, click the button below!",
-      image: "https://example.com/default-banner.png"
-    };
-
+  async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle(panelData.title)
-      .setDescription(panelData.description)
-      .setColor("#ffffff")
-      .setImage(panelData.image);
+      .setTitle('🎫 Ticket Panel')
+      .setDescription('Click the button below to create a ticket.')
+      .setColor(0x00AE86);
 
-    const panelRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("create-ticket").setLabel("🎟️ Create Ticket").setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId("edit-panel").setLabel("🛠️ Edit Panel").setStyle(ButtonStyle.Secondary)
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('create_ticket')
+        .setLabel('Create Ticket')
+        .setStyle(ButtonStyle.Primary)
     );
 
-    await interaction.reply({ content: "✅ Ticket panel sent.", ephemeral: true });
-    await interaction.channel.send({ embeds: [embed], components: [panelRow] });
+    await interaction.reply({ content: '✅ Ticket panel sent.', ephemeral: true });
+    await interaction.channel.send({ embeds: [embed], components: [row] });
   }
 };
