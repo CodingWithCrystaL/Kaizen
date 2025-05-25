@@ -1,11 +1,11 @@
 {
   "name": "kaizen-bot",
   "version": "1.0.0",
-  "description": "Kaizen — All-in-one Discord "
+  "description": "Kaizen — All-in-one Discord",
   "main": "index.js",
-"scripts": {
-  "start": "node index.js"
-},
+  "scripts": {
+    "start": "node index.js"
+  },
   "engines": {
     "node": "18.x"
   },
