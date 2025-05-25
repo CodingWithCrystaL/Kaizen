@@ -1,108 +1,81 @@
-const { Events, ChannelType, PermissionFlagsBits } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts');
-const getSettings = require('../utils/getSettings');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField } = require('discord.js');
+const fs = require('fs');
 
-module.exports = {
-  name: Events.InteractionCreate,
-  async execute(interaction) {
-    // Slash Command
-    if (interaction.isChatInputCommand()) {
-      const command = interaction.client.commands.get(interaction.commandName);
-      if (!command) return;
-      try {
-        await command.execute(interaction);
-      } catch (err) {
-        console.error(err);
-        await interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
-      }
-      return;
-    }
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton()) return;
 
-    // Button Interaction
-    if (interaction.isButton()) {
-      const { guild, member, customId } = interaction;
-      const settings = getSettings(guild.id);
-      if (!settings) {
-        return interaction.reply({ content: '⚠️ Ticket system not configured. Use `/setup_tickets`.', ephemeral: true });
-      }
+  // CREATE TICKET
+  if (interaction.customId.startsWith('create_ticket_')) {
+    const [, categoryId, supportRoleId, everyoneRoleId, transcriptChannelId, banner] = interaction.customId.split('_');
 
-      // Create Ticket Button
-      if (customId === 'create_ticket') {
-        const existingChannel = guild.channels.cache.find(c =>
-          c.name === `ticket-${member.user.username.toLowerCase()}`
-        );
+    const existing = interaction.guild.channels.cache.find(c => c.name === `ticket-${interaction.user.id}`);
+    if (existing) return interaction.reply({ content: `❌ You already have a ticket: ${existing}`, ephemeral: true });
 
-        if (existingChannel) {
-          return interaction.reply({ content: 'You already have an open ticket.', ephemeral: true });
-        }
+    const channel = await interaction.guild.channels.create({
+      name: `ticket-${interaction.user.id}`,
+      type: ChannelType.GuildText,
+      parent: categoryId,
+      permissionOverwrites: [
+        { id: everyoneRoleId, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: supportRoleId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+      ]
+    });
 
-        const ticketChannel = await guild.channels.create({
-          name: `ticket-${member.user.username}`,
-          type: ChannelType.GuildText,
-          parent: settings.supportCategory,
-          permissionOverwrites: [
-            {
-              id: guild.id,
-              deny: [PermissionFlagsBits.ViewChannel],
-            },
-            {
-              id: member.id,
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory,
-              ],
-            },
-            {
-              id: settings.supportRole,
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory,
-              ],
-            },
-          ],
-        });
+    const embed = new EmbedBuilder()
+      .setTitle('Ticket Opened')
+      .setDescription(`👋 Hello <@${interaction.user.id}>, please wait for our team <@&${supportRoleId}> to assist you.`)
+      .setColor('#2f3136');
 
-        await ticketChannel.send({
-          content: `Hello ${member}, a staff member will assist you soon.\nClick the button below to close this ticket.`,
-          components: [{
-            type: 1,
-            components: [
-              {
-                type: 2,
-                label: 'Close Ticket',
-                style: 4,
-                custom_id: 'close_ticket',
-              },
-            ],
-          }],
-        });
+    if (banner !== 'null') embed.setImage(banner);
 
-        await interaction.reply({ content: `✅ Ticket created: ${ticketChannel}`, ephemeral: true });
-        return;
-      }
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Close').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('reopen_ticket').setLabel('🔓 Reopen').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`transcript_ticket_${transcriptChannelId}`).setLabel('📝 Transcript').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('delete_ticket').setLabel('❌ Delete').setStyle(ButtonStyle.Danger)
+    );
 
-      // Close Ticket Button
-      if (customId === 'close_ticket') {
-        const channel = interaction.channel;
+    await channel.send({
+      content: `<@${interaction.user.id}> <@&${supportRoleId}>`,
+      embeds: [embed],
+      components: [row]
+    });
 
-        try {
-          const transcript = await discordTranscripts.createTranscript(channel);
-          const logChannel = await guild.channels.fetch(settings.logChannel);
-          await logChannel.send({
-            content: `📄 Transcript from ${channel.name} (closed by ${interaction.user.tag})`,
-            files: [transcript],
-          });
+    await interaction.reply({ content: `✅ Ticket created: ${channel}`, ephemeral: true });
+  }
 
-          await channel.send('✅ Ticket will be deleted in 5 seconds.');
-          setTimeout(() => channel.delete(), 5000);
-        } catch (err) {
-          console.error('Transcript error:', err);
-          await interaction.reply({ content: '❌ Failed to save transcript.', ephemeral: true });
-        }
-        return;
-      }
-    }
-  },
-};
+  // CLOSE TICKET
+  if (interaction.customId === 'close_ticket') {
+    await interaction.channel.permissionOverwrites.edit(interaction.user.id, { SendMessages: false });
+    await interaction.reply({ content: '🔒 Ticket closed.', ephemeral: true });
+  }
+
+  // REOPEN TICKET
+  if (interaction.customId === 'reopen_ticket') {
+    await interaction.channel.permissionOverwrites.edit(interaction.user.id, { SendMessages: true });
+    await interaction.reply({ content: '🔓 Ticket reopened.', ephemeral: true });
+  }
+
+  // TRANSCRIPT
+  if (interaction.customId.startsWith('transcript_ticket_')) {
+    const transcriptChannelId = interaction.customId.split('_')[2];
+    const messages = await interaction.channel.messages.fetch({ limit: 100 });
+    const content = messages.reverse().map(m => `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}`).join('\n');
+    const fileName = `transcript-${interaction.channel.id}.txt`;
+
+    fs.writeFileSync(fileName, content);
+    await interaction.guild.channels.cache.get(transcriptChannelId).send({
+      content: `📝 Transcript for ${interaction.channel.name}`,
+      files: [fileName]
+    });
+
+    await interaction.reply({ content: '📝 Transcript saved.', ephemeral: true });
+  }
+
+  // DELETE
+  if (interaction.customId === 'delete_ticket') {
+    await interaction.reply({ content: '❌ Deleting in 3 seconds...', ephemeral: true });
+    setTimeout(() => interaction.channel.delete(), 3000);
+  }
+});
